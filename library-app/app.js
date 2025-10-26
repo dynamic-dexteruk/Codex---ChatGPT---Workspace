@@ -17,6 +17,11 @@
     </svg>`
   );
 
+  function makeBg(url) {
+    if (url) return `url(${url}), url(${PLACEHOLDER_COVER})`;
+    return `url(${PLACEHOLDER_COVER})`;
+  }
+
   // ---------- IndexedDB Utilities ----------
   const DB_NAME = 'home-library';
   const DB_VERSION = 1;
@@ -113,7 +118,7 @@
       const badges = $('.badges', li);
       const actions = $('.row-actions', li);
 
-      cover.style.backgroundImage = `url(${b.coverUrl || PLACEHOLDER_COVER})`;
+      cover.style.backgroundImage = makeBg(b.coverUrl);
       title.textContent = b.title || '(Untitled)';
       const subBits = [];
       if (b.author) subBits.push(b.author);
@@ -184,7 +189,7 @@
     form.coverUrlPrefill.value = book?.coverUrl ?? '';
     // Set preview image
     const preview = $('#coverPreview');
-    if (preview) preview.style.backgroundImage = `url(${form.coverUrlPrefill.value || book?.coverUrl || PLACEHOLDER_COVER})`;
+    if (preview) preview.style.backgroundImage = makeBg(form.coverUrlPrefill.value || book?.coverUrl);
     dlg.showModal();
   }
 
@@ -210,7 +215,8 @@
       e.preventDefault();
       const form = $('#bookForm');
       const id = form.id.value ? Number(form.id.value) : null;
-      const coverFile = form.cover.files?.[0];
+      const coverInput = form.querySelector('input[name="cover"]');
+      const coverFile = coverInput && coverInput.files ? coverInput.files[0] : null;
       let coverUrl = null;
       if (coverFile) {
         try { coverUrl = await fileToDataURL(coverFile); } catch {}
@@ -247,7 +253,7 @@
 
     // Live preview when selecting a file
     const form = $('#bookForm');
-    const fileInput = form.cover;
+    const fileInput = form.querySelector('input[name="cover"]');
     const preview = $('#coverPreview');
     if (fileInput && preview) {
       fileInput.addEventListener('change', async () => {
@@ -255,13 +261,13 @@
         if (f) {
           try {
             const url = await fileToDataURL(f);
-            preview.style.backgroundImage = `url(${url})`;
+            preview.style.backgroundImage = makeBg(url);
           } catch {
-            preview.style.backgroundImage = `url(${PLACEHOLDER_COVER})`;
+            preview.style.backgroundImage = makeBg(null);
           }
         } else {
-          const fallback = form.coverUrlPrefill.value || PLACEHOLDER_COVER;
-          preview.style.backgroundImage = `url(${fallback})`;
+          const fallback = form.coverUrlPrefill.value || null;
+          preview.style.backgroundImage = makeBg(fallback);
         }
       });
     }
@@ -412,8 +418,8 @@
       if (!rec) return null;
       const title = rec.title || '';
       const authors = (rec.authors || []).map(a => a.name).filter(Boolean);
-      // If Open Library has explicit cover links, use them; otherwise leave null and show placeholder
-      const coverUrl = rec.cover?.medium || rec.cover?.large || rec.cover?.small || null;
+      // Prefer explicit cover, else fall back to generic cover URL by ISBN (may 404; UI layers placeholder under it)
+      const coverUrl = rec.cover?.medium || rec.cover?.large || rec.cover?.small || `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
       return { title, authors, coverUrl, isbn };
     } catch (e) {
       try {
@@ -421,8 +427,8 @@
         if (!res2.ok) return null;
         const b = await res2.json();
         const title = b.title || '';
-        // No direct cover info; fall back to placeholder by returning null
-        return { title, authors: [], coverUrl: null, isbn };
+        // Use generic cover URL; UI provides placeholder fallback if it 404s
+        return { title, authors: [], coverUrl: `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`, isbn };
       } catch {
         return null;
       }
