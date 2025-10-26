@@ -135,7 +135,7 @@
   // ---------- Event Handling ----------
   function wireTopbar() {
     $('#addBtn').addEventListener('click', () => openBookModal());
-    $('#scanBtn').addEventListener('click', () => openScanModal());
+    $('#lookupOpenBtn').addEventListener('click', () => openLookupModal());
     $('#exportBtn').addEventListener('click', exportData);
     $('#importInput').addEventListener('change', importData);
     $('#searchInput').addEventListener('input', (e) => { state.filters.search = e.target.value.trim(); renderList(); });
@@ -315,11 +315,9 @@
     }
   }
 
-  // ---------- Scan UI and ISBN Lookup ----------
-  let scan = { stream: null, detector: null, rafId: 0, active: false, lastCode: null };
-
-  function wireScanModal() {
-    $('#closeScanBtn').addEventListener('click', closeScanModal);
+  // ---------- ISBN/EAN Lookup (manual) ----------
+  function wireLookupModal() {
+    $('#closeScanBtn').addEventListener('click', closeLookupModal);
     $('#lookupBtn').addEventListener('click', async (e) => {
       e.preventDefault();
       const raw = $('#isbnManual').value;
@@ -329,65 +327,14 @@
     });
   }
 
-  function openScanModal() {
-    $('#scanStatus').textContent = 'Align the barcode in the frame. ISBN-13 preferred.';
+  function openLookupModal() {
+    $('#scanStatus').textContent = 'Enter ISBN-10 or ISBN-13/EAN-13 for books.';
     $('#isbnManual').value = '';
     $('#scanModal').showModal();
-    startScan();
   }
 
-  function closeScanModal() {
-    stopScan();
+  function closeLookupModal() {
     $('#scanModal').close();
-  }
-
-  async function startScan() {
-    try {
-      if (!('mediaDevices' in navigator)) throw new Error('Camera unsupported');
-      scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      const video = $('#scanVideo');
-      video.srcObject = scan.stream;
-      if ('BarcodeDetector' in window) {
-        const formats = ['ean_13','ean_8','upc_a','upc_e','code_128'];
-        scan.detector = new window.BarcodeDetector({ formats });
-        scan.active = true;
-        const loop = async () => {
-          if (!scan.active) return;
-          try {
-            const codes = await scan.detector.detect(video);
-            const found = codes?.[0]?.rawValue;
-            if (found && found !== scan.lastCode) {
-              scan.lastCode = found;
-              const isbn = sanitizeISBN(found);
-              if (isbn && (isbn.startsWith('978') || isbn.startsWith('979') || isbn.length === 10)) {
-                $('#scanStatus').textContent = `Detected: ${isbn}. Looking up…`;
-                await handleISBNLookup(isbn);
-                return; // stop after successful lookup (modal will close)
-              }
-            }
-          } catch (err) {
-            // ignore frame errors
-          }
-          scan.rafId = requestAnimationFrame(loop);
-        };
-        scan.rafId = requestAnimationFrame(loop);
-      } else {
-        $('#scanStatus').textContent = 'Live scanning not supported. Enter ISBN manually below.';
-      }
-    } catch (err) {
-      console.error(err);
-      $('#scanStatus').textContent = 'Camera access failed. Enter ISBN manually below.';
-    }
-  }
-
-  function stopScan() {
-    scan.active = false;
-    if (scan.rafId) cancelAnimationFrame(scan.rafId);
-    scan.rafId = 0;
-    if (scan.stream) {
-      scan.stream.getTracks().forEach(t => t.stop());
-      scan.stream = null;
-    }
   }
 
   function sanitizeISBN(raw) {
@@ -401,7 +348,7 @@
     try {
       const meta = await lookupByISBN(isbn);
       if (!meta) { $('#scanStatus').textContent = 'Not found. Try manual entry.'; return; }
-      closeScanModal();
+      closeLookupModal();
       openBookModal({
         title: meta.title || '',
         author: (meta.authors || []).join(', '),
@@ -455,7 +402,7 @@
     wireListActions();
     wireBookModal();
     wireLendModal();
-    wireScanModal();
+    wireLookupModal();
     await refresh();
   }
 

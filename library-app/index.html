@@ -19,7 +19,7 @@
           <option value="available">Available</option>
           <option value="lent">Lent</option>
         </select>
-        <button id="scanBtn">Scan ISBN</button>
+        <button id="lookupOpenBtn">Lookup ISBN/EAN</button>
         <button id="addBtn">Add Book</button>
         <button id="exportBtn">Export</button>
         <label class="import-label">
@@ -104,21 +104,15 @@
       </form>
     </dialog>
 
-    <!-- Modal: Scan ISBN -->
+    <!-- Modal: Lookup ISBN/EAN -->
     <dialog id="scanModal" class="modal">
       <form id="scanForm" method="dialog">
-        <h2>Scan ISBN</h2>
-        <div class="scan-grid">
-          <div class="video-wrap">
-            <video id="scanVideo" autoplay playsinline></video>
-            <div id="scanOverlay" class="scan-overlay"></div>
-          </div>
-          <div class="scan-help">
-            <p id="scanStatus">Align the barcode in the frame. ISBN-13 preferred.</p>
-            <div class="manual">
-              <input id="isbnManual" placeholder="Or enter ISBN manually" />
-              <button id="lookupBtn" class="primary">Lookup</button>
-            </div>
+        <h2>Lookup ISBN/EAN</h2>
+        <div class="scan-help">
+          <p id="scanStatus">Enter ISBN-10 or ISBN-13/EAN-13 for books.</p>
+          <div class="manual">
+            <input id="isbnManual" placeholder="Enter ISBN/EAN" />
+            <button id="lookupBtn" class="primary">Lookup</button>
           </div>
         </div>
         <menu>
