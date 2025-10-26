@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Home Library</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>Home Library</h1>
+      <div class="actions">
+        <input id="searchInput" type="search" placeholder="Search title, author, ISBN, tags" />
+        <select id="roomFilter">
+          <option value="">All Rooms</option>
+        </select>
+        <select id="statusFilter">
+          <option value="">All Status</option>
+          <option value="available">Available</option>
+          <option value="lent">Lent</option>
+        </select>
+        <button id="addBtn">Add Book</button>
+        <button id="exportBtn">Export</button>
+        <label class="import-label">
+          <input id="importInput" type="file" accept="application/json" hidden />
+          <span>Import</span>
+        </label>
+      </div>
+    </header>
+
+    <main>
+      <div id="emptyState" class="empty" hidden>
+        <p>No books yet. Click "Add Book" to get started.</p>
+      </div>
+      <ul id="bookList" class="book-list"></ul>
+    </main>
+
+    <!-- Modal: Add/Edit Book -->
+    <dialog id="bookModal" class="modal">
+      <form id="bookForm" method="dialog">
+        <h2 id="bookModalTitle">Add Book</h2>
+        <div class="grid">
+          <label>
+            <span>Title</span>
+            <input name="title" required />
+          </label>
+          <label>
+            <span>Author</span>
+            <input name="author" />
+          </label>
+          <label>
+            <span>ISBN</span>
+            <input name="isbn" />
+          </label>
+          <label>
+            <span>Room / Location</span>
+            <input name="location" placeholder="e.g. Living Room Shelf A" />
+          </label>
+          <label>
+            <span>Tags</span>
+            <input name="tags" placeholder="comma,separated,tags" />
+          </label>
+          <label class="full">
+            <span>Notes</span>
+            <textarea name="notes" rows="3"></textarea>
+          </label>
+          <label class="full">
+            <span>Cover Image (optional)</span>
+            <input type="file" name="cover" accept="image/*" />
+          </label>
+        </div>
+        <menu>
+          <button value="cancel" type="button" id="cancelBookBtn">Cancel</button>
+          <button value="confirm" id="saveBookBtn" class="primary">Save</button>
+        </menu>
+        <input type="hidden" name="id" />
+      </form>
+    </dialog>
+
+    <!-- Modal: Lend Book -->
+    <dialog id="lendModal" class="modal">
+      <form id="lendForm" method="dialog">
+        <h2>Lend Book</h2>
+        <div class="grid">
+          <label>
+            <span>Lend To</span>
+            <input name="lentTo" required placeholder="Name of friend/family" />
+          </label>
+          <label>
+            <span>Lend Date</span>
+            <input type="date" name="lendDate" />
+          </label>
+          <label>
+            <span>Due Date</span>
+            <input type="date" name="dueDate" />
+          </label>
+        </div>
+        <menu>
+          <button value="cancel" type="button" id="cancelLendBtn">Cancel</button>
+          <button value="confirm" id="confirmLendBtn" class="primary">Lend</button>
+        </menu>
+        <input type="hidden" name="id" />
+      </form>
+    </dialog>
+
+    <template id="bookItemTemplate">
+      <li class="book">
+        <div class="cover"></div>
+        <div class="meta">
+          <div class="title"></div>
+          <div class="sub"></div>
+          <div class="badges"></div>
+        </div>
+        <div class="row-actions">
+          <button class="small" data-action="lend">Lend</button>
+          <button class="small" data-action="return">Return</button>
+          <button class="small" data-action="edit">Edit</button>
+          <button class="small danger" data-action="delete">Delete</button>
+        </div>
+      </li>
+    </template>
+
+    <script src="app.js"></script>
+  </body>
+  </html>
+
