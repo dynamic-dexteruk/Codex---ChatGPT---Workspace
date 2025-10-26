@@ -86,6 +86,9 @@ main { padding: 16px; }
   background-size: cover;
   background-position: center;
 }
+.cover.large { width: 96px; height: 144px; }
+.cover-preview-wrap { display: flex; align-items: center; gap: 12px; }
+.cover-preview-label { font-size: 12px; color: var(--muted); }
 .book .meta { display: grid; grid-template-rows: auto auto 1fr; }
 .book .title { font-weight: 600; }
 .book .sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
