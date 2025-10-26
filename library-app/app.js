@@ -171,6 +171,7 @@
     form.location.value = book?.location ?? '';
     form.tags.value = (book?.tags || []).join(', ');
     form.notes.value = book?.notes ?? '';
+    form.coverUrlPrefill.value = book?.coverUrl ?? '';
     dlg.showModal();
   }
 
@@ -203,6 +204,9 @@
       } else if (id) {
         const existing = state.books.find(b => b.id === id);
         coverUrl = existing?.coverUrl || null;
+      } else {
+        // New book with prefilled cover from lookup
+        coverUrl = form.coverUrlPrefill.value || null;
       }
       const now = new Date().toISOString();
       const book = {
