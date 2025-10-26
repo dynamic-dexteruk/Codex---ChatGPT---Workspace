@@ -4,6 +4,7 @@ What it is
 - A self-contained browser app to organize your books.
 - Uses IndexedDB in your browser for storage (works offline).
 - Features: add/edit/delete books, track loans, search/filter, JSON import/export.
+- Extras: Scan ISBN with your camera (where supported) and auto‑lookup via Open Library.
 
 Quick start
 - Open `library-app/index.html` in a modern browser (Chrome, Edge, Firefox).
@@ -24,6 +25,7 @@ Workflows
 - Filter: Use Room and Status dropdowns to narrow the list.
 - Export: Click Export to download a JSON backup of all books.
 - Import: Click Import and select a previously exported JSON file.
+- Scan ISBN: Click Scan ISBN. Align the barcode in view; if supported the app detects ISBN automatically and pre‑fills a new book. If scanning isn’t supported or fails, type the ISBN manually and click Lookup.
 
 Data model (JSON shape)
 - Stored per-book schema (keys are optional unless noted):
@@ -47,7 +49,10 @@ Extending later
 - Add CSV import/export: Convert between CSV and the JSON structure.
 - Add shelves per room: Add new fields, indexes, and filters; UI will adapt similarly to how rooms are handled.
 
+Scanning notes
+- Uses the browser’s BarcodeDetector API when available (Chrome/Edge desktop and most Android). If unavailable or camera permissions are denied, use manual ISBN entry.
+- Lookup uses the public Open Library API at runtime from your browser.
+
 Notes
 - IndexedDB is available for `file://` in major browsers; if your browser blocks it, serve the folder with a simple local server (e.g., `python -m http.server` from the parent directory) and open `http://localhost:8000/library-app/`.
 - Cover images are stored as data URLs inside the browser; large images increase storage size. Prefer smaller images.
-

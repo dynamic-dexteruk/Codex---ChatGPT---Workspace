@@ -93,7 +93,7 @@
     const filtered = state.books.filter(matchesFilters);
     empty.hidden = filtered.length > 0;
     const tpl = $('#bookItemTemplate');
-    filtered.sort((a,b) => a.title.localeCompare(b.title));
+    filtered.sort(compareByTitle);
     for (const b of filtered) {
       const li = tpl.content.firstElementChild.cloneNode(true);
       const cover = $('.cover', li);
@@ -135,6 +135,7 @@
   // ---------- Event Handling ----------
   function wireTopbar() {
     $('#addBtn').addEventListener('click', () => openBookModal());
+    $('#scanBtn').addEventListener('click', () => openScanModal());
     $('#exportBtn').addEventListener('click', exportData);
     $('#importInput').addEventListener('change', importData);
     $('#searchInput').addEventListener('input', (e) => { state.filters.search = e.target.value.trim(); renderList(); });
@@ -314,6 +315,134 @@
     }
   }
 
+  // ---------- Scan UI and ISBN Lookup ----------
+  let scan = { stream: null, detector: null, rafId: 0, active: false, lastCode: null };
+
+  function wireScanModal() {
+    $('#closeScanBtn').addEventListener('click', closeScanModal);
+    $('#lookupBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      const raw = $('#isbnManual').value;
+      const isbn = sanitizeISBN(raw);
+      if (!isbn) { $('#isbnManual').focus(); return; }
+      await handleISBNLookup(isbn);
+    });
+  }
+
+  function openScanModal() {
+    $('#scanStatus').textContent = 'Align the barcode in the frame. ISBN-13 preferred.';
+    $('#isbnManual').value = '';
+    $('#scanModal').showModal();
+    startScan();
+  }
+
+  function closeScanModal() {
+    stopScan();
+    $('#scanModal').close();
+  }
+
+  async function startScan() {
+    try {
+      if (!('mediaDevices' in navigator)) throw new Error('Camera unsupported');
+      scan.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      const video = $('#scanVideo');
+      video.srcObject = scan.stream;
+      if ('BarcodeDetector' in window) {
+        const formats = ['ean_13','ean_8','upc_a','upc_e','code_128'];
+        scan.detector = new window.BarcodeDetector({ formats });
+        scan.active = true;
+        const loop = async () => {
+          if (!scan.active) return;
+          try {
+            const codes = await scan.detector.detect(video);
+            const found = codes?.[0]?.rawValue;
+            if (found && found !== scan.lastCode) {
+              scan.lastCode = found;
+              const isbn = sanitizeISBN(found);
+              if (isbn && (isbn.startsWith('978') || isbn.startsWith('979') || isbn.length === 10)) {
+                $('#scanStatus').textContent = `Detected: ${isbn}. Looking up…`;
+                await handleISBNLookup(isbn);
+                return; // stop after successful lookup (modal will close)
+              }
+            }
+          } catch (err) {
+            // ignore frame errors
+          }
+          scan.rafId = requestAnimationFrame(loop);
+        };
+        scan.rafId = requestAnimationFrame(loop);
+      } else {
+        $('#scanStatus').textContent = 'Live scanning not supported. Enter ISBN manually below.';
+      }
+    } catch (err) {
+      console.error(err);
+      $('#scanStatus').textContent = 'Camera access failed. Enter ISBN manually below.';
+    }
+  }
+
+  function stopScan() {
+    scan.active = false;
+    if (scan.rafId) cancelAnimationFrame(scan.rafId);
+    scan.rafId = 0;
+    if (scan.stream) {
+      scan.stream.getTracks().forEach(t => t.stop());
+      scan.stream = null;
+    }
+  }
+
+  function sanitizeISBN(raw) {
+    const s = (raw || '').replace(/[^0-9Xx]/g, '').toUpperCase();
+    if (!s) return '';
+    if (s.length === 10 || s.length === 13) return s;
+    return '';
+  }
+
+  async function handleISBNLookup(isbn) {
+    try {
+      const meta = await lookupByISBN(isbn);
+      if (!meta) { $('#scanStatus').textContent = 'Not found. Try manual entry.'; return; }
+      closeScanModal();
+      openBookModal({
+        title: meta.title || '',
+        author: (meta.authors || []).join(', '),
+        isbn: meta.isbn || isbn,
+        coverUrl: meta.coverUrl || null,
+        tags: [],
+        notes: meta.notes || ''
+      });
+    } catch (err) {
+      console.error(err);
+      $('#scanStatus').textContent = 'Lookup failed. Check connection or try again.';
+    }
+  }
+
+  async function lookupByISBN(isbn) {
+    const key = `ISBN:${isbn}`;
+    try {
+      const url = `https://openlibrary.org/api/books?bibkeys=${encodeURIComponent(key)}&jscmd=data&format=json`;
+      const res = await fetch(url, { mode: 'cors' });
+      if (!res.ok) throw new Error('Lookup error');
+      const data = await res.json();
+      const rec = data[key];
+      if (!rec) return null;
+      const title = rec.title || '';
+      const authors = (rec.authors || []).map(a => a.name).filter(Boolean);
+      const coverUrl = rec.cover?.medium || rec.cover?.large || rec.cover?.small || `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+      return { title, authors, coverUrl, isbn };
+    } catch (e) {
+      try {
+        const res2 = await fetch(`https://openlibrary.org/isbn/${isbn}.json`, { mode: 'cors' });
+        if (!res2.ok) return null;
+        const b = await res2.json();
+        const title = b.title || '';
+        const coverUrl = `https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`;
+        return { title, authors: [], coverUrl, isbn };
+      } catch {
+        return null;
+      }
+    }
+  }
+
   // ---------- Init ----------
   async function init() {
     try {
@@ -326,9 +455,28 @@
     wireListActions();
     wireBookModal();
     wireLendModal();
+    wireScanModal();
     await refresh();
   }
 
   document.addEventListener('DOMContentLoaded', init);
 })();
 
+// ---------- Helpers: Sorting ----------
+function normalizeTitle(t) {
+  const s = (t || '').trim();
+  const low = s.toLowerCase();
+  if (low.startsWith('the ')) return s.slice(4);
+  if (low.startsWith('a ')) return s.slice(2);
+  if (low.startsWith('an ')) return s.slice(3);
+  return s;
+}
+
+function compareByTitle(a, b) {
+  const ta = normalizeTitle(a.title);
+  const tb = normalizeTitle(b.title);
+  if (!ta && !tb) return 0;
+  if (!ta) return 1;
+  if (!tb) return -1;
+  return ta.localeCompare(tb, undefined, { sensitivity: 'base' });
+}
